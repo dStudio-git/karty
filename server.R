@@ -22,34 +22,36 @@ server <- function(input, output, session) {
   })
   
   tabela.ImR.new <- reactive({
-    if(is.null(input$plot_click)) {
-      tabela.ImR()
+    if(!is.null(input$plot_click)) {
+      wybrany.punkt <- input$plot_click$x
+      Podgrupa <- tabela.ImR()[wybrany.punkt,"Grupa"]
+      
+      tab <- tabela.ImR()
+      tab <- tab %>%
+        filter(Grupa == Podgrupa, Probka < wybrany.punkt)
+      
+      tab1 <- tabela.ImR()
+      tab1 <- tab1 %>%
+        filter(Grupa != Podgrupa)   
+      
+      tabela.ImR.new <- tabela.ImR() 
+      tabele.ImR.new <- tabela.ImR.new %>%
+        filter(Grupa == Podgrupa, Probka >= wybrany.punkt) %>%
+        mutate(Grupa = paste(Podgrupa, "_new"))
+      
+      df <- rbind(tab, tab1, tabele.ImR.new)
+      return(df)
+      
+      
     } else {
-    wybrany.punkt <- input$plot_click$x
-    Podgrupa <- tabela.ImR()[wybrany.punkt,"Grupa"]
-      
-    tab <- tabela.ImR()
-    tab <- tab %>%
-      filter(Grupa == Podgrupa, Probka < wybrany.punkt)
-
-    tab1 <- tabela.ImR()
-    tab1 <- tab1 %>%
-      filter(Grupa != Podgrupa)   
-    
-    tabela.ImR.new <- tabela.ImR() 
-    tabele.ImR.new <- tabela.ImR.new %>%
-      filter(Grupa == Podgrupa, Probka >= wybrany.punkt) %>%
-      mutate(Grupa = paste(Podgrupa, "_new"))
-      
-    df <- rbind(tab, tab1, tabele.ImR.new)
-    return(df)
+      tabela.ImR()
     }
   
   })
   
   
   output$plot.tabela.ImR <- DT::renderDataTable(
-    tabela.ImR.new(),
+    tabela.ImR(),
     style = 'default',
     filter = 'none',
     options = list(pageLength = 13),
@@ -67,7 +69,7 @@ server <- function(input, output, session) {
   )
   
   mR.avg.by.stage <- reactive({
-    mR.avg.by.stage <- tabela.ImR.new() %>%
+    mR.avg.by.stage <- tabela.ImR() %>%
       group_by(Grupa) %>%
       mutate(mR = abs(Pomiar - lag(Pomiar)))
   })
@@ -113,7 +115,7 @@ server <- function(input, output, session) {
   output$kartaI <- renderPlot({
     if (is.null(tabela.ImR()))
       return(NULL)
-    dane <- tabela.ImR.new()
+    dane <- tabela.ImR()
     avg.by.stage <- avg.by.stage.I()
     if(input$checkbox.ImR.LCL==TRUE){
       avg.by.stage$LCL <- input$bound.ImR.LCL}
