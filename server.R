@@ -22,15 +22,12 @@ server <- function(input, output, session) {
   })
   
   tabela.ImR.new <- reactive({
-    if(is.null(tabela.ImR()))
-      return(NULL)
-    
     if(is.null(input$plot_click)) {
       tabela.ImR()
     } else {
     wybrany.punkt <- input$plot_click$x
     Podgrupa <- tabela.ImR()[wybrany.punkt,"Grupa"]
-   
+      
     tab <- tabela.ImR()
     tab <- tab %>%
       filter(Grupa == Podgrupa, Probka < wybrany.punkt)
@@ -47,6 +44,7 @@ server <- function(input, output, session) {
     df <- rbind(tab, tab1, tabele.ImR.new)
     return(df)
     }
+  
   })
   
   
