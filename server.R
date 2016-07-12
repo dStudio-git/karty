@@ -2,13 +2,7 @@ library(plyr)
 library(dplyr)
 library(ggplot2)
 library(ggthemes)
-library(ggrepel)
 library(shinydashboard)
-library(extrafont)
-library(Rttf2pt1)
-library(extrafontdb)
-library(knitr)
-library(tidyr)
 library(Cairo)
 library(DT)
 
@@ -24,16 +18,45 @@ server <- function(input, output, session) {
       return(NULL)
     tabela.ImR <- read.csv(inFile$datapath, header=TRUE, sep = ";", quote = "\"", dec=",")
     tabela.ImR <- tabela.ImR %>%
-      mutate(Probka = row_number()) %>%
-      group_by(Linia) # na uzytek top_n()
+      mutate(Probka = row_number())
   })
   
+  tabela.ImR.new <- reactive({
+    if(is.null(tabela.ImR()))
+      return(NULL)
+    
+    if(is.null(input$plot_click)) {
+      tabela.ImR()
+    } else {
+    wybrany.punkt <- input$plot_click$x
+    Podgrupa <- tabela.ImR()[wybrany.punkt,"Grupa"]
+   
+    tab <- tabela.ImR()
+    tab <- tab %>%
+      filter(Grupa == Podgrupa, Probka < wybrany.punkt)
+
+    tab1 <- tabela.ImR()
+    tab1 <- tab1 %>%
+      filter(Grupa != Podgrupa)   
+    
+    tabela.ImR.new <- tabela.ImR() 
+    tabele.ImR.new <- tabela.ImR.new %>%
+      filter(Grupa == Podgrupa, Probka >= wybrany.punkt) %>%
+      mutate(Grupa = paste(Podgrupa, "_new"))
+      
+    df <- rbind(tab, tab1, tabele.ImR.new)
+    return(df)
+    }
+  })
+  
+  
   output$plot.tabela.ImR <- DT::renderDataTable(
-    tabela.ImR(),
+    tabela.ImR.new(),
     style = 'default',
     filter = 'none',
     options = list(pageLength = 13),
-    extensions = 'Responsive'
+    extensions = 'Responsive',
+    rownames = FALSE
   )
   
   output$plot.tabela.XbarR <- DT::renderDataTable(
@@ -41,12 +64,13 @@ server <- function(input, output, session) {
     style = 'default',
     filter = 'none',
     options = list(pageLength = 13),
-    extensions = 'Responsive'
+    extensions = 'Responsive',
+    rownames = FALSE
   )
   
   mR.avg.by.stage <- reactive({
-    mR.avg.by.stage <- tabela.ImR() %>%
-      group_by(Linia) %>%
+    mR.avg.by.stage <- tabela.ImR.new() %>%
+      group_by(Grupa) %>%
       mutate(mR = abs(Pomiar - lag(Pomiar)))
   })
   
@@ -56,7 +80,7 @@ server <- function(input, output, session) {
     mR.avg.by.stage <- mR.avg.by.stage()
     
     avg.by.stage.limits <- mR.avg.by.stage %>%
-      group_by(Linia) %>%
+      group_by(Grupa) %>%
       top_n((input$slider.ImR)) %>%
       summarize(mR.mean = mean(mR, na.rm=TRUE),
                 mean.by.stage = mean(Pomiar),
@@ -64,14 +88,14 @@ server <- function(input, output, session) {
                 LCL=mean.by.stage-2.66*mR.mean)
     
     avg.by.stage <- mR.avg.by.stage %>%
-      group_by(Linia) %>%
+      group_by(Grupa) %>%
       summarize(poz.label = Probka[row_number()==n()],
                 poz.linia.label = poz.label - (poz.label - Probka[row_number()==1])/2,
                 x_start_lab=Probka[row_number()==1],
                 x_end_lab=poz.label
       )
     
-    data <- merge(avg.by.stage, avg.by.stage.limits, by="Linia")
+    data <- merge(avg.by.stage, avg.by.stage.limits, by="Grupa")
   })
   
   avg.by.stage.mR <- reactive({
@@ -79,7 +103,7 @@ server <- function(input, output, session) {
       return(NULL)
     mR.avg.by.stage <- mR.avg.by.stage()
     avg.by.stage <- mR.avg.by.stage %>%
-      group_by(Linia) %>%
+      group_by(Grupa) %>%
       summarize(mR.mean = mean(mR, na.rm=TRUE),
                 UCL=3.267*mR.mean,
                 poz.label = Probka[row_number()==n()],
@@ -91,7 +115,7 @@ server <- function(input, output, session) {
   output$kartaI <- renderPlot({
     if (is.null(tabela.ImR()))
       return(NULL)
-    dane <- tabela.ImR()
+    dane <- tabela.ImR.new()
     avg.by.stage <- avg.by.stage.I()
     if(input$checkbox.ImR.LCL==TRUE){
       avg.by.stage$LCL <- input$bound.ImR.LCL}
@@ -99,12 +123,12 @@ server <- function(input, output, session) {
       avg.by.stage$UCL <- input$bound.ImR.UCL}
     
     I <- ggplot(data=dane)
-    I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Linia), linetype = "solid", colour = "black", size=0.25) 
+    I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25) 
     I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
     I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)), size = 3.5, color = "black", vjust=-0.5)
     I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = 3.5, color = "black", vjust= 1.5)
     I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)), size = 3.5, color = "black", vjust=-0.5)
-    I <- I + geom_text(data=avg.by.stage, aes(poz.linia.label, max(UCL), label=Linia), size = 4.5, color = "black", vjust=-1)
+    I <- I + geom_text(data=avg.by.stage, aes(poz.linia.label, max(UCL), label=Grupa), size = 4.5, color = "black", vjust=-1)
     I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab), yend=mean.by.stage), size=0.25)
     I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab), yend=LCL), size=0.25, linetype = "dashed")
     I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
@@ -120,7 +144,7 @@ server <- function(input, output, session) {
     dane <- mR.avg.by.stage()
     avg.by.stage.mR <- avg.by.stage.mR()
     mR <- ggplot(data=dane)
-    mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Linia), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
+    mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Grupa), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
     mR <- mR + geom_point(aes(x=as.numeric(Probka), y=mR),size = 2.5, shape = 16, colour = "black", na.rm=TRUE)
     mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=mR.mean, xend=as.numeric(x_end_lab), yend=mR.mean), size=0.25)
     mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=0, xend=as.numeric(x_end_lab), yend=0), size=0.25)
@@ -239,19 +263,19 @@ server <- function(input, output, session) {
       )
   })
   
-  output$sampling_tree <- renderDiagrammeR({
-    graf <- create_graph()
-    df <- sampling_tree.data()
-    #nodes <- read.csv2('c:/R/Shiny/ImR/nodes.csv', header = TRUE, sep = ";", quote = "\"", dec = ",", fill = TRUE, comment.char = "")
-    nodes <- add_nodes_from_df(graph=graf, df, set_type = NULL, select_cols = c('nody', 'nody.x'),
-                               drop_cols = c('Row'), rename_attrs = NULL, id_col = NULL, type_col = NULL,
-                               label_col = NULL)
-    edges <- read.csv2('c:/R/Shiny/ImR/edges.csv', header = TRUE, sep = ";", quote = "\"", dec = ",", fill = TRUE, comment.char = "")
-    nody_df <- create_nodes(nodes,fontname = "Gill Sans MT", shape="circle", width = 1, label="")
-    brzegi_df <- create_edges(from=edges$from, to=edges$to, size=1)
-    graf <- create_graph(nodes_df= nody_df,edges_df = brzegi_df)
-    render_graph(graf)
-  })
+  #output$sampling_tree <- renderDiagrammeR({
+  #  graf <- create_graph()
+  #  df <- sampling_tree.data()
+  #  #nodes <- read.csv2('c:/R/Shiny/ImR/nodes.csv', header = TRUE, sep = ";", quote = "\"", dec = ",", fill = TRUE, comment.char = "")
+  #  nodes <- add_nodes_from_df(graph=graf, df, set_type = NULL, select_cols = c('nody', 'nody.x'),
+  #                             drop_cols = c('Row'), rename_attrs = NULL, id_col = NULL, type_col = NULL,
+  #                             label_col = NULL)
+  #  edges <- read.csv2('c:/R/Shiny/ImR/edges.csv', header = TRUE, sep = ";", quote = "\"", dec = ",", fill = TRUE, comment.char = "")
+  #  nody_df <- create_nodes(nodes,fontname = "Gill Sans MT", shape="circle", width = 1, label="")
+  #  brzegi_df <- create_edges(from=edges$from, to=edges$to, size=1)
+  #  graf <- create_graph(nodes_df= nody_df,edges_df = brzegi_df)
+  #  render_graph(graf)
+  #})
   
   output$sampling_tree.table <- renderDataTable({
     dane <- sampling_tree.data()
