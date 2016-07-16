@@ -289,7 +289,8 @@ restricted.area <- reactive ({
  observeEvent(input$resetButton,{
     
     output$kartaI <- renderPlot({
-      
+      if (is.null(tabela.ImR()))
+        return(NULL)
       dane <- tabela.ImR()
       avg.by.stage <- avg.by.stage.I()
       if(input$checkbox.ImR.LCL==TRUE){
@@ -314,7 +315,8 @@ restricted.area <- reactive ({
     })  # plot
     
     output$karta.mR <- renderPlot({
-
+      if (is.null(tabela.ImR()))
+        return(NULL)
       dane <- mR.avg.by.stage()
       avg.by.stage.mR <- avg.by.stage.mR()
       mR <- ggplot(data=dane)

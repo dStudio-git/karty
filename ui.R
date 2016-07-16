@@ -224,7 +224,7 @@ dashboardPage(skin = "black", dashboardHeader(title = "SPC Dashboard" ),
                                             fluidRow(
                                               column(width=12,
                                                      plotOutput('kartaI', height = 170, click =clickOpts("plot_click", clip=FALSE)), br(),
-                                                     plotOutput('karta.mR', height = 170), actionButton("resetButton", "Restuj")
+                                                     plotOutput('karta.mR', height = 170)
                                                      
                                               ) # koniec column
                                             ), br(),br(),br(),# koniec fluidRow
@@ -249,7 +249,8 @@ dashboardPage(skin = "black", dashboardHeader(title = "SPC Dashboard" ),
                                                          ),#koniec fluidRow
                                                          fluidRow(
                                                            column(width=12,
-                                                                  sliderInput("slider.ImR", label = h3("Kalkulacja limitów"),min = 5,max = 50,value = 20)))#koniec fluidRow
+                                                                  hr(),sliderInput("slider.ImR", label = h3("Kalkulacja limitów"),min = 5,max = 50,value = 20),
+                                                                  hr(),h3("Resetuj podział na podgrupy"), actionButton("resetButton", "Restuj")))#koniec fluidRow
                                                      ),
                                                      box(title = "Help", status = "primary", solidHeader = TRUE, collapsible = TRUE, collapsed = TRUE, width = 12,
                                                          fluidRow(
