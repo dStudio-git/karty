@@ -24,7 +24,7 @@ server <- function(input, output, session) {
   
 
   output$plot.tabela.ImR <- DT::renderDataTable(
-    tabela.ImR(),
+     tabela.ImR(),
     #restricted.area(),
     style = 'default',
     filter = 'none',
@@ -286,6 +286,52 @@ restricted.area <- reactive ({
     filter(row_number() <= 3 | row_number() >= n()-2)
 })    
   
+ observeEvent(input$resetButton,{
+    
+    output$kartaI <- renderPlot({
+      
+      dane <- tabela.ImR()
+      avg.by.stage <- avg.by.stage.I()
+      if(input$checkbox.ImR.LCL==TRUE){
+        avg.by.stage$LCL <- input$bound.ImR.LCL}
+      if(input$checkbox.ImR.UCL==TRUE){
+        avg.by.stage$UCL <- input$bound.ImR.UCL}
+      
+      I <- ggplot(data=dane)
+      I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25) 
+      I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
+      I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)), size = 3.5, color = "black", vjust=-0.5)
+      I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = 3.5, color = "black", vjust= 1.5)
+      I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)), size = 3.5, color = "black", vjust=-0.5)
+      I <- I + geom_text(data=avg.by.stage, aes(poz.linia.label, max(UCL), label=Grupa), size = 4.5, color = "black", vjust=-1)
+      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab), yend=mean.by.stage), size=0.25)
+      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab), yend=LCL), size=0.25, linetype = "dashed")
+      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
+      I <- I + scale_x_continuous(breaks=NULL, labels=NULL) + scale_y_continuous(expand = c(0.2, 0))
+      I <- I + theme_tufte(ticks=FALSE)  
+      I <- I + theme(axis.title=element_blank())
+      return(I)
+    })  # plot
+    
+    output$karta.mR <- renderPlot({
+
+      dane <- mR.avg.by.stage()
+      avg.by.stage.mR <- avg.by.stage.mR()
+      mR <- ggplot(data=dane)
+      mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Grupa), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
+      mR <- mR + geom_point(aes(x=as.numeric(Probka), y=mR),size = 2.5, shape = 16, colour = "black", na.rm=TRUE)
+      mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=mR.mean, xend=as.numeric(x_end_lab), yend=mR.mean), size=0.25)
+      mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=0, xend=as.numeric(x_end_lab), yend=0), size=0.25)
+      mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
+      mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, mR.mean, label=round(mR.mean, digits=2)), size = 3.5, color = "black", vjust=-0.5)
+      mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = 3.5, color = "black", vjust=1.5)
+      mR <- mR + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka)
+      mR <- mR + theme_tufte(ticks=FALSE)  
+      mR <- mR + theme(axis.title=element_blank())
+      return(mR)
+    })
+  
+  })
   observeEvent(input$plot_click, {
     
     if ((round(as.numeric(input$plot_click$x)) %in% restricted.area()$Probka) ) {
@@ -297,11 +343,13 @@ restricted.area <- reactive ({
     wybrany.punkt <- round(as.numeric(input$plot_click$x))
     
     observe({
+
     Podgrupa <- tabela.ImR()[wybrany.punkt,"Grupa"]
     
     tab <- tabela.ImR()
     tab <- tab %>%
-      filter(Grupa == Podgrupa, Probka < wybrany.punkt)
+      filter(Grupa == Podgrupa, Probka < wybrany.punkt)%>%
+      mutate(Grupa = paste(Podgrupa, " - przed"))
     
     tab1 <- tabela.ImR()
     tab1 <- tab1 %>%
@@ -310,7 +358,7 @@ restricted.area <- reactive ({
     tabela.ImR.new <- tabela.ImR() 
     tabele.ImR.new <- tabela.ImR.new %>%
       filter(Grupa == Podgrupa, Probka >= wybrany.punkt) %>%
-      mutate(Grupa = paste(Podgrupa, "_new"))
+      mutate(Grupa = paste(Podgrupa, " - po"))
     
     df <- rbind(tab, tab1, tabele.ImR.new)
     
