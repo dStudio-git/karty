@@ -224,7 +224,8 @@ dashboardPage(skin = "black", dashboardHeader(title = "SPC Dashboard" ),
                                             fluidRow(
                                               column(width=12,
                                                      plotOutput('kartaI', height = 170, click =clickOpts("plot_click", clip=FALSE)), br(),
-                                                     plotOutput('karta.mR', height = 170)
+                                                     plotOutput('karta.mR', height = 170),
+                                                     verbatimTextOutput("info")
                                                      
                                               ) # koniec column
                                             ), br(),br(),br(),# koniec fluidRow
