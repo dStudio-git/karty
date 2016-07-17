@@ -223,8 +223,8 @@ dashboardPage(skin = "black", dashboardHeader(title = "SPC Dashboard" ),
                                    tabPanel(title = "Karta ImR", br(),
                                             fluidRow(
                                               column(width=12,
-                                                     plotOutput('kartaI', height = 170, click =clickOpts("plot_click", clip=FALSE)), br(),
-                                                     plotOutput('karta.mR', height = 170)
+                                                     plotOutput('kartaI', height = 300, click =clickOpts("plot_click", clip=FALSE)), br(), br(),br(),
+                                                     plotOutput('karta.mR', height = 150)
                                                      
                                               ) # koniec column
                                             ), br(),br(),br(),# koniec fluidRow
@@ -266,7 +266,7 @@ dashboardPage(skin = "black", dashboardHeader(title = "SPC Dashboard" ),
                                    
                                    tabPanel(title = "Tabela", br(),
                                             fluidRow(  
-                                              column(width=6,    DT::dataTableOutput('plot.tabela.ImR')
+                                              column(width=12,    DT::dataTableOutput('plot.tabela.ImR')
                                               )) # koniec column
                                    ) #koniec tabPanel Dane
                             )) #koniec tabBox
