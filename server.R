@@ -6,6 +6,7 @@ library(ggthemes)
 library(shinydashboard)
 library(Cairo)
 library(DT)
+library(plotly)
 
 
 ### WESTERN ELECTRIC RULES ##############################################
@@ -34,7 +35,6 @@ zasady.tablica <- function(tabela){
 
 ### zasada 1 : jeden punkt wypada poza obszar +/- 3 Sigma
 zasada.1  <- function(tabela) {
-  tabela <- tabela
   test <- tabela %>%
     group_by(Grupa) %>%
     mutate(Zasada.1 = ifelse(Pomiar > three.S | Pomiar < m.three.S, Probka, "") )
@@ -43,8 +43,11 @@ zasada.1  <- function(tabela) {
 #########################################################################
 ### zasada 2 : dwa z trzech punktów leżą obszarze między 2 a 3 sigma
 ### po tej samej stronie wzlędem średniej
-
-
+zasada.2 <- function(tabela) {
+#  test <- tabela %>%
+#    group_by(Grupa) %>%
+#    mutate(Zasada.2 = )
+}
 #########################################################################
 TUFTE.base.size = 12
 TUFTE.label.size = 3.75
@@ -55,20 +58,21 @@ server <- function(input, output, session) {
   D3 <- c(0,0,0,0,0,0.076,0.136,0.184,0.223,0.256,0.283,0.307,0.328,0.347,0.363,0.378,0.391,0.403,0.415,0.425,0.434,0.443,0.451,0.459)
   D4 <- c(3.267,2.574,2.282,2.114,2.004,1.924,1.864,1.816,1.777,1.744,1.717,1.693,1.672,1.653,1.637,1.622,1.608,1.597,1.585,1.575,1.566,1.557,1.548,1.541)
   
+  
 
   
-  tabela.ImR <- reactive({
-    inFile <- input$file1
-    if (is.null(inFile))
-      return(NULL)
-    tabela.ImR <- read.csv(inFile$datapath, header=TRUE, sep = ";", quote = "\"", dec=",")
-    tabela.ImR <- tabela.ImR %>%
+  dat <- reactiveValues(dat=NULL)
+  
+  observeEvent(input$file1,{
+    dat$dat <- read.csv(input$file1$datapath, header=TRUE, sep = ";", quote = "\"", dec=",")
+    dat$dat <- dat$dat %>%
       mutate(Probka = row_number())
   })
+
   
 
   output$plot.tabela.ImR <- DT::renderDataTable(
-    tabela.ImR(),
+    dat$dat[,],
     #mR.avg.by.stage(),
     #restricted.area(),
     style = 'default',
@@ -88,14 +92,13 @@ server <- function(input, output, session) {
   )
   
   mR.avg.by.stage <- reactive({
-    mR.avg.by.stage <- tabela.ImR() %>%
+    mR.avg.by.stage <- dat$dat[,] %>%
       group_by(Grupa) %>%
       mutate(mR = abs(Pomiar - lag(Pomiar)))
   })
   
   avg.by.stage.I <- reactive({
-    if (is.null(tabela.ImR()))
-      return(NULL)
+   
     mR.avg.by.stage <- mR.avg.by.stage()
     
     avg.by.stage.limits <- mR.avg.by.stage %>%
@@ -118,8 +121,7 @@ server <- function(input, output, session) {
   })
   
   avg.by.stage.mR <- reactive({
-    if (is.null(tabela.ImR()))
-      return(NULL)
+   
     mR.avg.by.stage <- mR.avg.by.stage()
     avg.by.stage <- mR.avg.by.stage %>%
       group_by(Grupa) %>%
@@ -132,15 +134,14 @@ server <- function(input, output, session) {
   })
 
 pierwszy.plot <- reactive({
-  dane <- tabela.ImR()
+  dane <- dat$dat[,]
   estetyka <- avg.by.stage.I()
   rysuj.indywidualne(dane,estetyka)
 })    
   
   output$kartaI <- renderPlot({
-    if (is.null(tabela.ImR()))
-      return(NULL)
-    dane <- tabela.ImR()
+    
+    dane <- dat$dat[,]
     
     avg.by.stage <- avg.by.stage.I()
     if(input$checkbox.ImR.LCL==TRUE){
@@ -168,7 +169,7 @@ pierwszy.plot <- reactive({
     I <- I + scale_x_continuous(breaks=NULL, labels=NULL) + scale_y_continuous(expand = c(0.2, 0))
     I <- I + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
     I <- I + theme(axis.title=element_blank())
-    return(I)
+    I
   })
   
   output$karta.mR <- renderPlot({
@@ -338,11 +339,13 @@ pierwszy.plot <- reactive({
   })
 
 restricted.area <- reactive ({
-  dane <- tabela.ImR()
+  dane <- dat$dat[,]
   dane <- dane %>%
     group_by(Grupa) %>%
     arrange(Probka) %>%
     filter(row_number() <= 3 | row_number() >= n()-2)
+  
+  dane<-as.data.frame(dane)
 })    
   
  observeEvent(input$resetButton,{
@@ -350,7 +353,7 @@ restricted.area <- reactive ({
     output$kartaI <- renderPlot({
       if (is.null(tabela.ImR()))
         return(NULL)
-      dane <- tabela.ImR()
+      dane <- dat$dat[,]
       avg.by.stage <- avg.by.stage.I()
       if(input$checkbox.ImR.LCL==TRUE){
         avg.by.stage$LCL <- input$bound.ImR.LCL}
@@ -381,8 +384,7 @@ restricted.area <- reactive ({
     })  # plot
     
     output$karta.mR <- renderPlot({
-      if (is.null(tabela.ImR()))
-        return(NULL)
+   
       dane <- mR.avg.by.stage()
       avg.by.stage.mR <- avg.by.stage.mR()
       mR <- ggplot(data=dane)
@@ -404,33 +406,33 @@ restricted.area <- reactive ({
     
     if ((round(as.numeric(input$plot_click$x)) %in% restricted.area()$Probka) ) {
       return(NULL)
-    } else if (input$plot_click$x > max(tabela.ImR()$Probka)) { 
+    } else if (input$plot_click$x > max(dat$dat$Probka)) { 
       return(NULL)
-    } else if (input$plot_click$x < min(tabela.ImR()$Probka)) { 
+    } else if (input$plot_click$x < min(dat$dat$Probka)) { 
     } else {  
     wybrany.punkt <- round(as.numeric(input$plot_click$x))
     
     observe({
 
-    Podgrupa <- tabela.ImR()[wybrany.punkt,"Grupa"]
+    Podgrupa <- dat$dat[wybrany.punkt,"Grupa"]
     
-    tab <- tabela.ImR()
+    tab <- dat$dat[,]
     tab <- tab %>%
       filter(Grupa == Podgrupa, Probka < wybrany.punkt)%>%
       mutate(Grupa = paste(Podgrupa, " - przed"))
     
-    tab1 <- tabela.ImR()
+    tab1 <- dat$dat[,]
     tab1 <- tab1 %>%
       filter(Grupa != Podgrupa)   
     
-    tabela.ImR.new <- tabela.ImR() 
+    tabela.ImR.new <- dat$dat[,]
     tabele.ImR.new <- tabela.ImR.new %>%
       filter(Grupa == Podgrupa, Probka >= wybrany.punkt) %>%
       mutate(Grupa = paste(Podgrupa, " - po"))
     
     df <- rbind(tab, tab1, tabele.ImR.new)
-    
-    mR.avg.by.stage <- df %>%
+    dat$dat <- df
+    mR.avg.by.stage <- dat$dat %>%
       group_by(Grupa) %>%
       mutate(mR = abs(Pomiar - lag(Pomiar)))
     
@@ -463,7 +465,7 @@ restricted.area <- reactive ({
   
     output$kartaI <- renderPlot({
       
-      dane <- df
+      dane <- dat$dat
       avg.by.stage <- avg.by.stage.I
       if(input$checkbox.ImR.LCL==TRUE){
         avg.by.stage$LCL <- input$bound.ImR.LCL}

@@ -5,6 +5,7 @@ library(ggthemes)
 library(shinydashboard)
 library(Cairo)
 library(DT)
+library(plotly)
 
 dashboardPage(skin = "black", dashboardHeader(title = "SPC Dashboard" ),
               dashboardSidebar(
@@ -218,12 +219,14 @@ dashboardPage(skin = "black", dashboardHeader(title = "SPC Dashboard" ),
                           ))),
                   tabItem(tabName = "ImR",
                           fluidRow(
-                            tabBox(side="left",width = 12, title = "SPC - statystyczna kontrola procesu", selected = "Karta ImR", 
+                            tabBox(side="left",width = 12, title = "SPC - statystyczna obserwacja procesu", selected = "Karta ImR", 
                                    
                                    tabPanel(title = "Karta ImR", br(),
                                             fluidRow(
                                               column(width=12,
-                                                     plotOutput('kartaI', height = 300, click =clickOpts("plot_click", clip=FALSE)), br(), br(),br(),
+                                                     plotOutput('kartaI', height = 300, click =clickOpts("plot_click", clip=FALSE)),
+                                                     
+                                                     br(), br(),br(),
                                                      plotOutput('karta.mR', height = 150)
                                                      
                                               ) # koniec column
