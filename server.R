@@ -63,10 +63,93 @@ licznik <- reactiveValues(licznik=2)
 #### INPUT FILE - wgranie przez użytkownika pliku nadpisuje ############
 #### reactiveValues dat$dat ######
 observeEvent(input$file1,{
-  dat$dat <- NULL
+  
   dat$dat <- read.csv(input$file1$datapath, header=TRUE, sep = ";", quote = "\"", dec=",")
   dat$dat <- dat$dat %>%
     mutate(Probka = row_number())
+  
+  mR.avg.by.stage <- dat$dat %>%
+    group_by(Grupa) %>%
+    mutate(mR = abs(Pomiar - lag(Pomiar)))
+  
+  avg.by.stage.limits <- mR.avg.by.stage %>%
+    group_by(Grupa) %>%
+    #top_n((input$slider.ImR)) %>%
+    summarize(mR.mean = mean(mR, na.rm=TRUE),
+      mean.by.stage = mean(Pomiar),
+      UCL=mean.by.stage+2.66*mR.mean,
+      LCL=mean.by.stage-2.66*mR.mean)
+  
+  avg.by.stage <- mR.avg.by.stage %>%
+    group_by(Grupa) %>%
+    summarize(poz.label = Probka[row_number()==n()],
+      poz.linia.label = poz.label - (poz.label - Probka[row_number()==1])/2,
+      x_start_lab=Probka[row_number()==1],
+      x_end_lab=poz.label)
+  avg.by.stage.I <- merge(avg.by.stage, avg.by.stage.limits, by="Grupa")
+  
+  avg.by.stage.mR <- mR.avg.by.stage %>%
+    group_by(Grupa) %>%
+    summarize(mR.mean = mean(mR, na.rm=TRUE),
+      UCL=3.267*mR.mean,
+      poz.label = Probka[row_number()==n()],
+      x_start_lab=Probka[row_number()==2],
+      x_end_lab=Probka[row_number()==n()])
+  
+  output$kartaI <- renderPlot({
+    dane <- dat$dat
+    avg.by.stage <- avg.by.stage.I
+    if(input$checkbox.ImR.LCL==TRUE){
+      avg.by.stage$LCL <- input$bound.ImR.LCL}
+    if(input$checkbox.ImR.UCL==TRUE){
+      avg.by.stage$UCL <- input$bound.ImR.UCL}
+    
+    ### Testy na danych wejsciowych funkcji plot
+    test <- zasady.tablica(dane)
+    dane <- zasada.1(test)
+    #-------------------------------------------
+    
+    I <- ggplot(data=dane)
+    I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25)
+    I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
+    ### Zasada.1 ####
+    I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 2.5, shape = 16, colour = "red", na.rm = TRUE)
+    I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)),
+      size = TUFTE.label.size, color = "black", vjust=-0.5)
+    I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size,
+      color = "black", vjust= -0.5)
+    I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= 1.5)
+    I <- I + geom_text(data=avg.by.stage, aes(poz.linia.label, max(UCL), label=Grupa), size = 4.5, color = "black", vjust=-1)
+    I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab),
+      yend=mean.by.stage), size=0.25)
+    I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab),
+      yend=LCL), size=0.25, linetype = "dashed")
+    I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
+    I <- I + scale_x_continuous(breaks=NULL, labels=NULL) + scale_y_continuous(expand = c(0.2, 0))
+    I <- I + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
+    I <- I + theme(axis.title=element_blank())
+    return(I)
+  })  # plot
+  
+  output$karta.mR <- renderPlot({
+    
+    dane <- mR.avg.by.stage
+    mR <- ggplot(data=dane)
+    mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Grupa), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
+    mR <- mR + geom_point(aes(x=as.numeric(Probka), y=mR),size = 2.5, shape = 16, colour = "black", na.rm=TRUE)
+    mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=mR.mean, xend=as.numeric(x_end_lab), yend=mR.mean), size=0.25)
+    mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=0, xend=as.numeric(x_end_lab), yend=0), size=0.25)
+    mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
+    mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, mR.mean, label=round(mR.mean, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
+    mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
+    mR <- mR + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka)
+    mR <- mR + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
+    mR <- mR + theme(axis.title=element_blank())
+    return(mR)
+  })
+  
+  
+  
 })
 
 #### TABELA BAZOWA - tabela, ktora sluży do pierwszego uruchomienia ####
@@ -200,7 +283,7 @@ observeEvent(input$plot_click,{
         mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=0, xend=as.numeric(x_end_lab), yend=0), size=0.25)
         mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
         mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, mR.mean, label=round(mR.mean, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
-        mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust=1.5)
+        mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
         mR <- mR + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka)
         mR <- mR + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
         mR <- mR + theme(axis.title=element_blank())
@@ -477,58 +560,7 @@ output$plot.tabela.XbarR <- DT::renderDataTable(
       )
   })
   
-  output$kartaI <- renderPlot({
-    if (is.null(tabela.ImR()))
-      return(NULL)
-    dane <- tabela.ImR()
-    
-    avg.by.stage <- avg.by.stage.I()
-    if(input$checkbox.ImR.LCL==TRUE){
-      avg.by.stage$LCL <- input$bound.ImR.LCL}
-    if(input$checkbox.ImR.UCL==TRUE){
-      avg.by.stage$UCL <- input$bound.ImR.UCL}
-    
-    ### Testy na danych wejsciowych funkcji plot
-    test <- zasady.tablica(dane)
-    dane <- zasada.1(test)
-    #-------------------------------------------
-    
-    I <- ggplot(data=dane)
-    I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25) 
-    I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
-    ### Zasada.1 ####
-    I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 2.5, shape = 16, colour = "red", na.rm = TRUE)
-    I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
-    I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
-    I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)), size = TUFTE.label.size, color = "black", vjust=1.5)
-    I <- I + geom_text(data=avg.by.stage, aes(poz.linia.label, max(UCL), label=Grupa), size = 4.5, color = "black", vjust=-1)
-    I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab), yend=mean.by.stage), size=0.25)
-    I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab), yend=LCL), size=0.25, linetype = "dashed")
-    I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
-    I <- I + scale_x_continuous(breaks=NULL, labels=NULL) + scale_y_continuous(expand = c(0.2, 0))
-    I <- I + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
-    I <- I + theme(axis.title=element_blank())
-    return(I)
-  })
   
-  output$karta.mR <- renderPlot({
-    if (is.null(avg.by.stage.mR()))
-      return(NULL)
-    dane <- mR.avg.by.stage()
-    avg.by.stage.mR <- avg.by.stage.mR()
-    mR <- ggplot(data=dane)
-    mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Grupa), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
-    mR <- mR + geom_point(aes(x=as.numeric(Probka), y=mR),size = 2.5, shape = 16, colour = "black", na.rm=TRUE)
-    mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=mR.mean, xend=as.numeric(x_end_lab), yend=mR.mean), size=0.25)
-    mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=0, xend=as.numeric(x_end_lab), yend=0), size=0.25)
-    mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
-    mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, mR.mean, label=round(mR.mean, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
-    mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust=1.5)
-    mR <- mR + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka)
-    mR <- mR + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
-    mR <- mR + theme(axis.title=element_blank())
-    return(mR)
-  })
   
 
   
