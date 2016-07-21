@@ -49,7 +49,7 @@ zasada.2  <- function(tabela) {
   test <- tabela %>%
     group_by(Grupa) %>%
     mutate(Zasada.2 = ifelse(ifelse(lag(Pomiar)>two.S & lag(Pomiar)<=three.S, 1, 0)+ifelse(lag(Pomiar,2)>two.S & lag(Pomiar,2)<=three.S, 1, 0)+ifelse(lag(Pomiar,3)>two.S & lag(Pomiar,3)<=three.S, 1, 0)>=2 |
-                             ifelse(lag(Pomiar)<m.two.S & lag(Pomiar)>=m.three.S, 1, 0)+ifelse(lag(Pomiar,2)<m.two.S & lag(Pomiar,2)>=m.three.S, 1, 0)+ifelse(lag(Pomiar,3)<m.two.S & lag(Pomiar,3)>=m.three.S, 1, 0)>=2,
+                               ifelse(lag(Pomiar)<m.two.S & lag(Pomiar)>=m.three.S, 1, 0)+ifelse(lag(Pomiar,2)<m.two.S & lag(Pomiar,2)>=m.three.S, 1, 0)+ifelse(lag(Pomiar,3)<m.two.S & lag(Pomiar,3)>=m.three.S, 1, 0)>=2,
                              lag(Probka,2), "") )
   return(as.data.frame(test))
 }
@@ -63,18 +63,18 @@ D4 <- c(3.267,2.574,2.282,2.114,2.004,1.924,1.864,1.816,1.777,1.744,1.717,1.693,
 
 server <- function(input, output, session) {
   
-#### REACTIVE VALUES ###################################################
-#### OGÓLNA TABLICA zmieniana na bierząco (reakcja na plot_click) #########
-dat <- reactiveValues(dat=NULL)
-# LICZNIK podziału na stage    
-licznik <- reactiveValues(licznik=2)
+  #### REACTIVE VALUES ###################################################
+  #### OGÓLNA TABLICA zmieniana na bierząco (reakcja na plot_click) #########
+  dat <- reactiveValues(dat=NULL)
+  # LICZNIK podziału na stage    
+  licznik <- reactiveValues(licznik=2)
   
-#### INPUT FILE - wgranie przez użytkownika pliku nadpisuje ############
-#### reactiveValues dat$dat ######
-observeEvent(input$file1,{
-  dat$dat <- read.csv(input$file1$datapath, header=TRUE, sep = ";", quote = "\"", dec=",")
-  dat$dat <- dat$dat %>%
-    mutate(Probka = row_number())
+  #### INPUT FILE - wgranie przez użytkownika pliku nadpisuje ############
+  #### reactiveValues dat$dat ######
+  observeEvent(input$file1,{
+    dat$dat <- read.csv(input$file1$datapath, header=TRUE, sep = ";", quote = "\"", dec=",")
+    dat$dat <- dat$dat %>%
+      mutate(Probka = row_number())
     
     mR.avg.by.stage <- dat$dat %>%
       group_by(Grupa) %>%
