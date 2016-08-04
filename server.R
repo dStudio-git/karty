@@ -1,4 +1,3 @@
-
 library(plyr)
 library(dplyr)
 library(ggplot2)
@@ -7,8 +6,59 @@ library(shinydashboard)
 library(Cairo)
 library(DT)
 
+###--------------------- ZBIÓR FUNKCJI PLOT --------------------------###
 
-### WESTERN ELECTRIC RULES ##############################################
+## RYSUJ KARTĘ WARTOŚCI INDYWIDUALNYCH ##################################
+rysuj.I <- function(dane, estetyka, LCL, UCL){
+  if(LCL==TRUE){
+    estetyka$LCL <- LCL}
+  if(UCL==TRUE){
+    estetykaUCL <- UCL}
+  I <- ggplot(data=dane)
+  I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25)
+  I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
+  ### Zasada.1 ####
+  I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 3.5, shape = 16, colour = "red", na.rm = TRUE)
+  ### Zasada.2 ####
+  I <- I + geom_point(aes(x=as.numeric(Zasada.2), y=Pomiar), size = 3.5, shape = 16, colour = "green", na.rm = TRUE)
+  ### Zasada.3 ####
+  I <- I + geom_point(aes(x=as.numeric(Zasada.3), y=Pomiar), size = 3.5, shape = 16, colour = "blue", na.rm = TRUE)
+  ### Zasada.4 ####
+  I <- I + geom_point(aes(x=as.numeric(Zasada.4), y=Pomiar), size = 3.5, shape = 16, colour = "yellow", na.rm = TRUE)
+  I <- I + geom_text(data=estetyka, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
+  I <- I + geom_text(data=estetyka, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= -0.5)
+  I <- I + geom_text(data=estetyka, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= 1.5)
+  I <- I + geom_text(data=estetyka, aes(poz.linia.label, max(UCL), label=Grupa), size = 4.5, color = "black", vjust=-1)
+  I <- I + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab), yend=mean.by.stage), size=0.25)
+  I <- I + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=mean.by.stage+1/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+1/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
+  I <- I + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=mean.by.stage+2/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+2/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
+  I <- I + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
+  I <- I + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab), yend=LCL), size=0.25, linetype = "dashed")
+  I <- I + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=mean.by.stage-1/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-1/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
+  I <- I + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=mean.by.stage-2/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-2/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
+  I <- I + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka) + scale_y_continuous(expand = c(0.3, 0))
+  I <- I + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
+  I <- I + theme(axis.title=element_blank())
+return(I)
+} #######################################################################
+## RYSUJ KARTĘ WARTOŚCI INDYWIDUALNYCH ##################################
+rysuj.mR <- function(dane, estetyka){
+  mR <- ggplot(data=dane)
+  mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Grupa), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
+  mR <- mR + geom_point(aes(x=as.numeric(Probka), y=mR),size = 2.5, shape = 16, colour = "black", na.rm=TRUE)
+  mR <- mR + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=mR.mean, xend=as.numeric(x_end_lab), yend=mR.mean), size=0.25)
+  mR <- mR + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=0, xend=as.numeric(x_end_lab), yend=0), size=0.25)
+  mR <- mR + geom_segment(data=estetyka, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
+  mR <- mR + geom_text(data=estetyka, aes(poz.label-0.5, mR.mean, label=round(mR.mean, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
+  mR <- mR + geom_text(data=estetyka, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
+  mR <- mR + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka)
+  mR <- mR + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
+  mR <- mR + theme(axis.title=element_blank())
+return(mR)
+}
+###-------------------KONIEC ZBIORU FUNKCJI PLOT ----------------------###
+
+### -----------------WESTERN ELECTRIC RULES----------------------------###
 ### seria testow na podanej tablicy (oryginalnej lub po podziale na stage)
 ### testy urychamiane są przy w funkcji plot na najnowszych danych
 ### w zależności od testu przeprowadzany jest na jednym punkcie lub grupie
@@ -64,7 +114,7 @@ zasada.2  <- function(tabela) {
            )
   return(as.data.frame(test))
 }
-#######################################################################
+
 ### zasada 3 : cztery z pięciu punktów są poza limitem 1 Sigma  #######
 ### po tej samej stronie wzlędem średniej #############################
 #### STAŁE GLOBALNE ###################################################
@@ -85,7 +135,7 @@ zasada.3  <- function(tabela) {
            )
   return(as.data.frame(test))
 }
-#######################################################################
+
 ### zasada 4 : dziewięć punktów z rzędu po jednej stronie od średniej #
 ### po tej samej stronie wzlędem średniej #############################
 zasada.4  <- function(tabela) {
@@ -93,7 +143,7 @@ zasada.4  <- function(tabela) {
   test <- tabela %>%
     group_by(Grupa) %>%
     arrange(Probka) %>%
-    mutate(Zasada.4 = ifelse(rozmiar.grupy>9,ifelse(ifelse(Pomiar>Mean, 1, 0)+ ifelse(lag(Pomiar)>Mean, 1, 0)+
+    mutate(Zasada.4.pom = ifelse(rozmiar.grupy>9,ifelse(ifelse(Pomiar>Mean, 1, 0)+ ifelse(lag(Pomiar)>Mean, 1, 0)+
                                ifelse(lag(Pomiar,2)>Mean, 1, 0) + ifelse(lag(Pomiar,3)>Mean, 1, 0)+
                                ifelse(lag(Pomiar,5)>Mean, 1, 0) + ifelse(lag(Pomiar,5)>Mean, 1, 0)+ 
                                ifelse(lag(Pomiar,6)>Mean, 1, 0) + ifelse(lag(Pomiar,7)>Mean, 1, 0)+ 
@@ -103,7 +153,8 @@ zasada.4  <- function(tabela) {
                                ifelse(lag(Pomiar,4)<Mean, 1, 0) + ifelse(lag(Pomiar,5)<Mean, 1, 0)+ 
                                ifelse(lag(Pomiar,6)<Mean, 1, 0) + ifelse(lag(Pomiar,7)<Mean, 1, 0)+ 
                                ifelse(lag(Pomiar,8)<Mean, 1, 0) > 8,
-                               Probka, ""),"")
+                               Probka, ""),""),
+           Zasada.4 = ifelse(lead(Zasada.4.pom) != "", "",Zasada.4.pom)
                              )
   return(as.data.frame(test))
 }
@@ -167,85 +218,24 @@ server <- function(input, output, session) {
     dane <- zasada.3(dane)
     dane <- zasada.4(dane)
     
-    output$plot.tabela.ImR <- DT::renderDataTable(
-      tab <- dane %>%
-        select(Probka, Grupa, Pomiar, rozmiar.grupy, Zasada.1, Zasada.2, Zasada.3, Zasada.4),
-      style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
+    #output$plot.tabela.ImR <- DT::renderDataTable(
+    #  tab <- dane %>%
+    #    select(Probka, Grupa, Pomiar, rozmiar.grupy, Zasada.1, Zasada.2, Zasada.3, Zasada.4),
+    #  style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
     
+    ## rysuj kartę wartości indywidualnych
     output$kartaI <- renderPlot({
-      
-      avg.by.stage <- avg.by.stage.I
-      if(input$checkbox.ImR.LCL==TRUE){
-        avg.by.stage$LCL <- input$bound.ImR.LCL}
-      if(input$checkbox.ImR.UCL==TRUE){
-        avg.by.stage$UCL <- input$bound.ImR.UCL}
-      
-      I <- ggplot(data=dane)
-      I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25)
-      I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
-      ### Zasada.1 ####
-      I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 3.5, shape = 16, colour = "red", na.rm = TRUE)
-      ### Zasada.2 ####
-      I <- I + geom_point(aes(x=as.numeric(Zasada.2), y=Pomiar), size = 3.5, shape = 16, colour = "green", na.rm = TRUE)
-      ### Zasada.3 ####
-      I <- I + geom_point(aes(x=as.numeric(Zasada.3), y=Pomiar), size = 3.5, shape = 16, colour = "blue", na.rm = TRUE)
-      ### Zasada.4 ####
-      I <- I + geom_point(aes(x=as.numeric(Zasada.4), y=Pomiar), size = 3.5, shape = 16, colour = "yellow", na.rm = TRUE)
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab), yend=mean.by.stage), size=0.25)
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage+1/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+1/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage+2/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+2/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab), yend=LCL), size=0.25, linetype = "dashed")
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage-1/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-1/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage-2/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-2/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
-      I <- I + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka) + scale_y_continuous(expand = c(0.2, 0))
-      I <- I + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
-      I <- I + theme(axis.title=element_blank())
+      I <- rysuj.I(dane, avg.by.stage.I, input$checkbox.ImR.LCL, input$bound.ImR.UCL)
       return(I)
-    })  # plot
-    
-    output$karta.mR <- renderPlot({
-      dane <- mR.avg.by.stage
-      mR <- ggplot(data=dane)
-      mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Grupa), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
-      mR <- mR + geom_point(aes(x=as.numeric(Probka), y=mR),size = 2.5, shape = 16, colour = "black", na.rm=TRUE)
-      mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=mR.mean, xend=as.numeric(x_end_lab), yend=mR.mean), size=0.25)
-      mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=0, xend=as.numeric(x_end_lab), yend=0), size=0.25)
-      mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
-      mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, mR.mean, label=round(mR.mean, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
-      mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
-      mR <- mR + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka)
-      mR <- mR + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
-      mR <- mR + theme(axis.title=element_blank())
-      return(mR)
     })
     
-    
-    
+    ## rysuj kartę ruchomych rozstępów
+    output$karta.mR <- renderPlot({
+      mR <- rysuj.mR(mR.avg.by.stage, avg.by.stage.mR)
+      return(mR)
+    })
   })
   
-  #### TABELA BAZOWA - tabela, ktora sluży do pierwszego uruchomienia ####
-  #### funkcji plot (start aplikacji). Tabela zmienia się tylko gdy ######
-  #### wgrany jest nowy plik
-  tabela.ImR <- reactive({
-    inFile <- input$file1
-    if (is.null(inFile))
-      return(NULL)
-    tabela.ImR <- read.csv(inFile$datapath, header=TRUE, sep = ";", quote = "\"", dec=",")
-    tabela.ImR <- tabela.ImR %>%
-      mutate(Probka = row_number())
-  })
-  
-  #### RESTRICTED AREA - dynamiczna tabela zawierająca obszary ###########
-  #### zakazane do kliknięcia - plus/minus n = 2 punkty od ###############
-  #### krańców każdego stage'a ###########################################
-  restricted.area <- reactive ({
-    dane <- dat$dat
-    dane <- dane %>%
-      group_by(Grupa) %>%
-      #arrange(Probka) %>%
-      filter(row_number() <= 2 | row_number() >= n()-1)
-  })
   
   #### PLOT CLICK - podział tabeli reaktywnej dat$dat na stage'y po ######
   #### każdym kliknięciu przez użytkownika. Na koniec rysowanie ##########
@@ -310,144 +300,86 @@ server <- function(input, output, session) {
                   x_start_lab=Probka[row_number()==2],
                   x_end_lab=Probka[row_number()==n()])
       
-      
-      ### Testy na danych wejsciowych funkcji plot
+      ### Testy na danych wejsciowych dla funkcji plot
       dane <- dat$dat
       test <- zasady.tablica(dane)
       dane <- zasada.1(test)
       dane <- zasada.2(dane)
       dane <- zasada.3(dane)
-      #dane <- zasada.4(dane)
+      dane <- zasada.4(dane)
       
-      output$plot.tabela.ImR <- DT::renderDataTable(
-        tab <- dane %>%
-          select(Probka, Grupa, Pomiar, rozmiar.grupy, Zasada.1, Zasada.2, Zasada.3),# Zasada.4),
-        style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
+      #output$plot.tabela.ImR <- DT::renderDataTable(
+      #  tab <- dane %>%
+      #    select(Probka, Grupa, Pomiar, rozmiar.grupy, Zasada.1, Zasada.2, Zasada.3, Zasada.4),
+      #  style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
       
+      ## rysuj kartę wartości idywidualnych
       output$kartaI <- renderPlot({
-        
-        avg.by.stage <- avg.by.stage.I
-        if(input$checkbox.ImR.LCL==TRUE){
-          avg.by.stage$LCL <- input$bound.ImR.LCL}
-        if(input$checkbox.ImR.UCL==TRUE){
-          avg.by.stage$UCL <- input$bound.ImR.UCL}
-        
-        I <- ggplot(data=dane)
-        I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25)
-        I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
-        ### Zasada.1 ####
-        I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 3.5, shape = 16, colour = "red", na.rm = TRUE)
-        ### Zasada.2 ####
-        I <- I + geom_point(aes(x=as.numeric(Zasada.2), y=Pomiar), size = 3.5, shape = 16, colour = "green", na.rm = TRUE)
-        ### Zasada.3 ####
-        I <- I + geom_point(aes(x=as.numeric(Zasada.3), y=Pomiar), size = 3.5, shape = 16, colour = "blue", na.rm = TRUE)
-        I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
-        I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= -0.5)
-        I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= 1.5)
-        I <- I + geom_text(data=avg.by.stage, aes(poz.linia.label, max(UCL), label=Grupa), size = 4.5, color = "black", vjust=-1)
-        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab), yend=mean.by.stage), size=0.25)
-        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage+1/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+1/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
-        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage+2/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+2/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
-        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
-        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab), yend=LCL), size=0.25, linetype = "dashed")
-        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage-1/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-1/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
-        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage-2/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-2/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
-        I <- I + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka) + scale_y_continuous(expand = c(0.2, 0))
-        I <- I + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
-        I <- I + theme(axis.title=element_blank())
+        I <- rysuj.I(dane, avg.by.stage.I, input$checkbox.ImR.LCL, input$bound.ImR.UCL)
         return(I)
-      })  # plot
+      })
       
+      ## rysuj kartę ruchomych rozstępów
       output$karta.mR <- renderPlot({
-        
-        dane <- mR.avg.by.stage
-        mR <- ggplot(data=dane)
-        mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Grupa), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
-        mR <- mR + geom_point(aes(x=as.numeric(Probka), y=mR),size = 2.5, shape = 16, colour = "black", na.rm=TRUE)
-        mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=mR.mean, xend=as.numeric(x_end_lab), yend=mR.mean), size=0.25)
-        mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=0, xend=as.numeric(x_end_lab), yend=0), size=0.25)
-        mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
-        mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, mR.mean, label=round(mR.mean, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
-        mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
-        mR <- mR + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka)
-        mR <- mR + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
-        mR <- mR + theme(axis.title=element_blank())
+        mR <- rysuj.mR(mR.avg.by.stage, avg.by.stage.mR)
         return(mR)
       })
       
     } #else
   })
   
-  #### PLOT RESET - reset tabeli oraz wykresu do stanu po wgraniu pliku ########
-  observeEvent(input$resetButton,{
+#### PLOT RESET - reset tabeli oraz wykresu do stanu po wgraniu pliku ########
+observeEvent(input$resetButton,{
+    dane <- tabela.ImR()
     
+    #reset zmiennych dat$dat i licznika
+    dat$dat <- tabela.ImR()
+    licznik$licznik <- 2
     
+    dane <- dat$dat
+    test <- zasady.tablica(dane)
+    dane <- zasada.1(test)
+    dane <- zasada.2(dane)
+    dane <- zasada.3(dane)
+    dane <- zasada.4(dane)
+
     output$kartaI <- renderPlot({
-      dane <- tabela.ImR()
-      
-      #reset zmiennych dat$dat i licznika
-      dat$dat <- tabela.ImR()
-      licznik$licznik <- 2
-      
-      avg.by.stage <- avg.by.stage.I()
-      if(input$checkbox.ImR.LCL==TRUE){
-        avg.by.stage$LCL <- input$bound.ImR.LCL}
-      if(input$checkbox.ImR.UCL==TRUE){
-        avg.by.stage$UCL <- input$bound.ImR.UCL}
-      
-      ### Testy na danych wejsciowych funkcji plot
-      test <- zasady.tablica(dane)
-      dane <- zasada.1(test)
-      #-------------------------------------------
-      
-      I <- ggplot(data=dane)
-      I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25) 
-      I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
-      ### Zasada.1 ####
-      I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 2.5, shape = 16, colour = "red", na.rm = TRUE)
-      I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)),
-                         size = TUFTE.label.size, color = "black", vjust=-0.5)
-      I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size,
-                         color = "black", vjust= -0.5)
-      I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)),
-                         size = TUFTE.label.size, color = "black", vjust=1.5)
-      I <- I + geom_text(data=avg.by.stage, aes(poz.linia.label, max(UCL), label=Grupa), size = 4.5, color = "black", vjust=-1)
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab),
-                                                   yend=mean.by.stage), size=0.25)
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab),
-                                                   yend=LCL), size=0.25, linetype = "dashed")
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab),
-                                                   yend=UCL), size=0.25, linetype = "dashed")
-      I <- I + scale_x_continuous(breaks=NULL, labels=NULL) + scale_y_continuous(expand = c(0.2, 0))
-      I <- I + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
-      I <- I + theme(axis.title=element_blank())
+      I <- rysuj.I(dane, avg.by.stage.I(), input$checkbox.ImR.LCL, input$bound.ImR.UCL)
       return(I)
-    })  # plot
+    })
     
+    ## rysuj kartę ruchomych rozstępów
     output$karta.mR <- renderPlot({
-      dane <- mR.avg.by.stage()
-      avg.by.stage.mR <- avg.by.stage.mR()
-      mR <- ggplot(data=dane)
-      mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Grupa), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
-      mR <- mR + geom_point(aes(x=as.numeric(Probka), y=mR),size = 2.5, shape = 16, colour = "black", na.rm=TRUE)
-      mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=mR.mean, xend=as.numeric(x_end_lab),
-                                                        yend=mR.mean), size=0.25)
-      mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=0, xend=as.numeric(x_end_lab), yend=0), size=0.25)
-      mR <- mR + geom_segment(data=avg.by.stage.mR, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab),
-                                                        yend=UCL), size=0.25, linetype = "dashed")
-      mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, mR.mean, label=round(mR.mean, digits=2)),
-                           size = TUFTE.label.size, color = "black", vjust=-0.5)
-      mR <- mR + geom_text(data=avg.by.stage.mR, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)),
-                           size = TUFTE.label.size, color = "black", vjust=-0.5)
-      mR <- mR + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka)
-      mR <- mR + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
-      mR <- mR + theme(axis.title=element_blank())
+      mR <- rysuj.mR(mR.avg.by.stage(), avg.by.stage.mR())
       return(mR)
     })
+}) #### PLOT RESET KONIEC ##################################################
+
+  #### TABELA BAZOWA - tabela, ktora sluży do pierwszego uruchomienia ####
+  #### funkcji plot (start aplikacji). Tabela zmienia się tylko gdy ######
+  #### wgrany jest nowy plik
+  tabela.ImR <- reactive({
+    inFile <- input$file1
+    if (is.null(inFile))
+      return(NULL)
+    tabela.ImR <- read.csv(inFile$datapath, header=TRUE, sep = ";", quote = "\"", dec=",")
+    tabela.ImR <- tabela.ImR %>%
+      mutate(Probka = row_number())
   })
   
+  #### RESTRICTED AREA - dynamiczna tabela zawierająca obszary ###########
+  #### zakazane do kliknięcia - plus/minus n = 2 punkty od ###############
+  #### krańców każdego stage'a ###########################################
+  restricted.area <- reactive ({
+    dane <- dat$dat
+    dane <- dane %>%
+      group_by(Grupa) %>%
+      #arrange(Probka) %>%
+      filter(row_number() <= 2 | row_number() >= n()-1)
+  })  
   
-  #### RYSOWANIE TABEL #####################################################
+    
+#### RYSOWANIE TABEL #####################################################
   output$plot.tabela.ImR <- DT::renderDataTable(
     #tabela.ImR(),
     dat$dat,
@@ -455,10 +387,7 @@ server <- function(input, output, session) {
   
   output$plot.tabela.XbarR <- DT::renderDataTable(
     tabela.XbarR(), style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
-  
-  
-  
-  
+
   tabela.XbarR <- reactive({
     inFile <- input$file2
     if (is.null(inFile))
@@ -603,12 +532,7 @@ server <- function(input, output, session) {
                 x_end_lab=Probka[row_number()==n()]
       )
   })
-  
-  
-  
-  
-  
-  
+
 }
 
 

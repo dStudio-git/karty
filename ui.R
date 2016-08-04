@@ -269,7 +269,7 @@ dashboardPage(skin = "black", dashboardHeader(title = "SPC Dashboard" ),
                                    
                                    tabPanel(title = "Tabela", br(),
                                             fluidRow(  
-                                              column(width=12,    DT::dataTableOutput('plot.tabela.ImR')
+                                              column(width=6,    DT::dataTableOutput('plot.tabela.ImR')
                                               )) # koniec column
                                    ) #koniec tabPanel Dane
                             )) #koniec tabBox
