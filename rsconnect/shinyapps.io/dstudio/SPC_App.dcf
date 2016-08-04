@@ -2,9 +2,9 @@ name: SPC_App
 account: dstudio
 server: shinyapps.io
 appId: 111778
-bundleId: 506747
+bundleId: 512461
 url: https://dstudio.shinyapps.io/SPC_App/
-when: 1468698649.24398
+when: 1469171262.55012
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: OKOKOKOK/server.R|OKOKOKOK/ui.R
+ignoredFiles: OKOKOKOK/server.R|OKOKOKOK/ui.R|OKOKOKOK/plus_zasada 1/server.R|OKOKOKOK/plus_zasada 1/ui.R|OKOKOKOK/plus_zasada 2/server.R

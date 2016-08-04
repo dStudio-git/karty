@@ -15,12 +15,13 @@ library(DT)
 
 ### Dodaj do oryginalnej tablicy (potrzebne są wszystkie punkty) kolumnę z
 ### pogrupowanymi danymi: 3S, -3S, 2S, -2S, 1S, -1S
-
 zasady.tablica <- function(tabela){
   tabela <- tabela
   tabela <- tabela %>%
     group_by(Grupa) %>%
-    mutate(mov.R = abs(Pomiar - lag(Pomiar)),
+    arrange(Probka) %>%
+    mutate(rozmiar.grupy = n(),
+           mov.R = abs(Pomiar - lag(Pomiar)),
            mov.R.mean = mean(mov.R, na.rm=TRUE),
            Mean = mean(Pomiar),
            Sigma = 2.66 * mov.R.mean / 3,
@@ -32,27 +33,81 @@ zasady.tablica <- function(tabela){
            m.three.S = Mean - 3 * Sigma)
 }
 
-### zasada 1 : jeden punkt wypada poza obszar +/- 3 Sigma
+## zasada 1 : jeden punkt wypada poza obszar +/- 3 Sigma
+## RED
 zasada.1  <- function(tabela) {
   tabela <- as.data.frame(tabela)
   test <- tabela %>%
     group_by(Grupa) %>%
+    arrange(Probka) %>%
     mutate(Zasada.1 = ifelse(Pomiar > three.S | Pomiar < m.three.S, Probka, "") )
   return(as.data.frame(test))
 }
 
-#######################################################################
-### zasada 2 : dwa z trzech punktów leżą obszarze między 2 a 3 sigma ##
-### po tej samej stronie wzlędem średniej##############################
+## zasada 2 : dwa z trzech punktów leżą obszarze między 2 a 3 Sigma 
+## po tej samej stronie wzlędem średniej
+## GREEN
 zasada.2  <- function(tabela) {
   tabela <- as.data.frame(tabela)
   test <- tabela %>%
     group_by(Grupa) %>%
-    mutate(Zasada.2 = ifelse(ifelse(lag(Pomiar)>two.S & lag(Pomiar)<=three.S, 1, 0)+ifelse(lag(Pomiar,2)>two.S & lag(Pomiar,2)<=three.S, 1, 0)+ifelse(lag(Pomiar,3)>two.S & lag(Pomiar,3)<=three.S, 1, 0)>=2 |
-                               ifelse(lag(Pomiar)<m.two.S & lag(Pomiar)>=m.three.S, 1, 0)+ifelse(lag(Pomiar,2)<m.two.S & lag(Pomiar,2)>=m.three.S, 1, 0)+ifelse(lag(Pomiar,3)<m.two.S & lag(Pomiar,3)>=m.three.S, 1, 0)>=2,
-                             lag(Probka,2), "") )
+    arrange(Probka) %>%
+    mutate(Zasada.2.pom =  ifelse(rozmiar.grupy>3,
+                        ifelse(ifelse(Pomiar>two.S & Pomiar<=three.S, 1, 0)+
+                         ifelse(lag(Pomiar)>two.S & lag(Pomiar)<=three.S, 1, 0)+
+                         ifelse(lag(Pomiar,2)>two.S & lag(Pomiar,2)<=three.S, 1, 0)>=2 |
+                         ifelse(Pomiar<m.two.S & Pomiar>=m.three.S, 1, 0)+
+                         ifelse(lag(Pomiar)<m.two.S & lag(Pomiar)>=m.three.S, 1, 0)+
+                         ifelse(lag(Pomiar,2)<m.two.S & lag(Pomiar,2)>=m.three.S, 1, 0)>=2,
+                         Probka, ""),""),
+           Zasada.2 = ifelse(lead(Zasada.2.pom) != "", "",Zasada.2.pom)
+           )
   return(as.data.frame(test))
 }
+#######################################################################
+### zasada 3 : cztery z pięciu punktów są poza limitem 1 Sigma  #######
+### po tej samej stronie wzlędem średniej #############################
+#### STAŁE GLOBALNE ###################################################
+## BLUE
+zasada.3  <- function(tabela) {
+  tabela <- as.data.frame(tabela)
+  test <- tabela %>%
+    group_by(Grupa) %>%
+    arrange(Probka) %>%
+    mutate(Zasada.3.pom = ifelse(rozmiar.grupy>5,ifelse( ifelse(Pomiar>S, 1, 0)+
+                       ifelse(lag(Pomiar)>S, 1, 0) + ifelse(lag(Pomiar,2)>S, 1, 0)+
+                       ifelse(lag(Pomiar,3)>S, 1, 0) + ifelse(lag(Pomiar,4)>S, 1, 0) >= 4 |
+                       ifelse(Pomiar<m.S, 1, 0) + ifelse(lag(Pomiar)<m.S, 1, 0)+ 
+                       ifelse(lag(Pomiar,2)<m.S, 1, 0) + ifelse(lag(Pomiar,3)<m.S, 1, 0)+ 
+                       ifelse(lag(Pomiar,4)<m.S, 1, 0) >= 4,
+                       Probka, ""),""),
+           Zasada.3 = ifelse(lead(Zasada.3.pom) != "", "",Zasada.3.pom)
+           )
+  return(as.data.frame(test))
+}
+#######################################################################
+### zasada 4 : dziewięć punktów z rzędu po jednej stronie od średniej #
+### po tej samej stronie wzlędem średniej #############################
+zasada.4  <- function(tabela) {
+  tabela <- as.data.frame(tabela)
+  test <- tabela %>%
+    group_by(Grupa) %>%
+    arrange(Probka) %>%
+    mutate(Zasada.4 = ifelse(rozmiar.grupy>9,ifelse(ifelse(Pomiar>Mean, 1, 0)+ ifelse(lag(Pomiar)>Mean, 1, 0)+
+                               ifelse(lag(Pomiar,2)>Mean, 1, 0) + ifelse(lag(Pomiar,3)>Mean, 1, 0)+
+                               ifelse(lag(Pomiar,5)>Mean, 1, 0) + ifelse(lag(Pomiar,5)>Mean, 1, 0)+ 
+                               ifelse(lag(Pomiar,6)>Mean, 1, 0) + ifelse(lag(Pomiar,7)>Mean, 1, 0)+ 
+                               ifelse(lag(Pomiar,8)>Mean, 1, 0) > 8 |
+                               ifelse(Pomiar<Mean, 1, 0) + ifelse(lag(Pomiar)<Mean, 1, 0)+ 
+                               ifelse(lag(Pomiar,2)<Mean, 1, 0) + ifelse(lag(Pomiar,3)<Mean, 1, 0)+ 
+                               ifelse(lag(Pomiar,4)<Mean, 1, 0) + ifelse(lag(Pomiar,5)<Mean, 1, 0)+ 
+                               ifelse(lag(Pomiar,6)<Mean, 1, 0) + ifelse(lag(Pomiar,7)<Mean, 1, 0)+ 
+                               ifelse(lag(Pomiar,8)<Mean, 1, 0) > 8,
+                               Probka, ""),"")
+                             )
+  return(as.data.frame(test))
+}
+
 #### STAŁE GLOBALNE ###################################################
 TUFTE.base.size = 12
 TUFTE.label.size = 3.75
@@ -104,51 +159,52 @@ server <- function(input, output, session) {
                 x_start_lab=Probka[row_number()==2],
                 x_end_lab=Probka[row_number()==n()])
     
+    ### Testy na danych wejsciowych funkcji plot
+    dane <- dat$dat
+    test <- zasady.tablica(dane)
+    dane <- zasada.1(test)
+    dane <- zasada.2(dane)
+    dane <- zasada.3(dane)
+    dane <- zasada.4(dane)
+    
+    output$plot.tabela.ImR <- DT::renderDataTable(
+      tab <- dane %>%
+        select(Probka, Grupa, Pomiar, rozmiar.grupy, Zasada.1, Zasada.2, Zasada.3, Zasada.4),
+      style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
+    
     output$kartaI <- renderPlot({
-      dane <- dat$dat
+      
       avg.by.stage <- avg.by.stage.I
       if(input$checkbox.ImR.LCL==TRUE){
         avg.by.stage$LCL <- input$bound.ImR.LCL}
       if(input$checkbox.ImR.UCL==TRUE){
         avg.by.stage$UCL <- input$bound.ImR.UCL}
       
-      ### Testy na danych wejsciowych funkcji plot
-      test <- zasady.tablica(dane)
-      dane <- zasada.1(test)
-      dane <- zasada.2(dane)
-      
-      output$plot.tabela.ImR <- DT::renderDataTable(
-        dane,
-        style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
-      
-      #-------------------------------------------
-      
       I <- ggplot(data=dane)
       I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25)
       I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
       ### Zasada.1 ####
-      I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 5.5, shape = 1, colour = "red", na.rm = TRUE)
+      I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 3.5, shape = 16, colour = "red", na.rm = TRUE)
       ### Zasada.2 ####
-      I <- I + geom_point(aes(x=as.numeric(Zasada.2), y=lag(Pomiar,2)), size = 5.5, shape = 1, colour = "green", na.rm = TRUE)
-      I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)),
-                         size = TUFTE.label.size, color = "black", vjust=-0.5)
-      I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size,
-                         color = "black", vjust= -0.5)
-      I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= 1.5)
-      I <- I + geom_text(data=avg.by.stage, aes(poz.linia.label, max(UCL), label=Grupa), size = 4.5, color = "black", vjust=-1)
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab),
-                                                   yend=mean.by.stage), size=0.25)
-      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab),
-                                                   yend=LCL), size=0.25, linetype = "dashed")
+      I <- I + geom_point(aes(x=as.numeric(Zasada.2), y=Pomiar), size = 3.5, shape = 16, colour = "green", na.rm = TRUE)
+      ### Zasada.3 ####
+      I <- I + geom_point(aes(x=as.numeric(Zasada.3), y=Pomiar), size = 3.5, shape = 16, colour = "blue", na.rm = TRUE)
+      ### Zasada.4 ####
+      I <- I + geom_point(aes(x=as.numeric(Zasada.4), y=Pomiar), size = 3.5, shape = 16, colour = "yellow", na.rm = TRUE)
+      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab), yend=mean.by.stage), size=0.25)
+      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage+1/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+1/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
+      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage+2/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+2/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
       I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
-      I <- I + scale_x_continuous(breaks=NULL, labels=NULL) + scale_y_continuous(expand = c(0.2, 0))
+      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab), yend=LCL), size=0.25, linetype = "dashed")
+      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage-1/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-1/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
+      I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage-2/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-2/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
+      I <- I + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka) + scale_y_continuous(expand = c(0.2, 0))
       I <- I + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
       I <- I + theme(axis.title=element_blank())
       return(I)
     })  # plot
     
     output$karta.mR <- renderPlot({
-      
       dane <- mR.avg.by.stage
       mR <- ggplot(data=dane)
       mR <- mR + geom_line(aes(x=as.numeric(Probka), y=mR, group=Grupa), linetype = "solid", colour = "black", size=0.25, na.rm=TRUE) 
@@ -254,36 +310,49 @@ server <- function(input, output, session) {
                   x_start_lab=Probka[row_number()==2],
                   x_end_lab=Probka[row_number()==n()])
       
+      
+      ### Testy na danych wejsciowych funkcji plot
+      dane <- dat$dat
+      test <- zasady.tablica(dane)
+      dane <- zasada.1(test)
+      dane <- zasada.2(dane)
+      dane <- zasada.3(dane)
+      #dane <- zasada.4(dane)
+      
+      output$plot.tabela.ImR <- DT::renderDataTable(
+        tab <- dane %>%
+          select(Probka, Grupa, Pomiar, rozmiar.grupy, Zasada.1, Zasada.2, Zasada.3),# Zasada.4),
+        style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
+      
       output$kartaI <- renderPlot({
-        dane <- dat$dat
+        
         avg.by.stage <- avg.by.stage.I
         if(input$checkbox.ImR.LCL==TRUE){
           avg.by.stage$LCL <- input$bound.ImR.LCL}
         if(input$checkbox.ImR.UCL==TRUE){
           avg.by.stage$UCL <- input$bound.ImR.UCL}
         
-        ### Testy na danych wejsciowych funkcji plot
-        test <- zasady.tablica(dane)
-        dane <- zasada.1(test)
-        #-------------------------------------------
-        
         I <- ggplot(data=dane)
         I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25)
         I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
         ### Zasada.1 ####
-        I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 2.5, shape = 16, colour = "red", na.rm = TRUE)
-        I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)),
-                           size = TUFTE.label.size, color = "black", vjust=-0.5)
-        I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size,
-                           color = "black", vjust= -0.5)
+        I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 3.5, shape = 16, colour = "red", na.rm = TRUE)
+        ### Zasada.2 ####
+        I <- I + geom_point(aes(x=as.numeric(Zasada.2), y=Pomiar), size = 3.5, shape = 16, colour = "green", na.rm = TRUE)
+        ### Zasada.3 ####
+        I <- I + geom_point(aes(x=as.numeric(Zasada.3), y=Pomiar), size = 3.5, shape = 16, colour = "blue", na.rm = TRUE)
+        I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
+        I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= -0.5)
         I <- I + geom_text(data=avg.by.stage, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= 1.5)
         I <- I + geom_text(data=avg.by.stage, aes(poz.linia.label, max(UCL), label=Grupa), size = 4.5, color = "black", vjust=-1)
-        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab),
-                                                     yend=mean.by.stage), size=0.25)
-        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab),
-                                                     yend=LCL), size=0.25, linetype = "dashed")
+        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage, xend=as.numeric(x_end_lab), yend=mean.by.stage), size=0.25)
+        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage+1/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+1/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
+        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage+2/3*(UCL-mean.by.stage), xend=as.numeric(x_end_lab), yend=mean.by.stage+2/3*(UCL-mean.by.stage)), size=0.25, linetype = "dashed", alpha = 0.1)
         I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=UCL, xend=as.numeric(x_end_lab), yend=UCL), size=0.25, linetype = "dashed")
-        I <- I + scale_x_continuous(breaks=NULL, labels=NULL) + scale_y_continuous(expand = c(0.2, 0))
+        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=LCL, xend=as.numeric(x_end_lab), yend=LCL), size=0.25, linetype = "dashed")
+        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage-1/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-1/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
+        I <- I + geom_segment(data=avg.by.stage, aes(x=as.numeric(x_start_lab), y=mean.by.stage-2/3*(mean.by.stage-LCL), xend=as.numeric(x_end_lab), yend=mean.by.stage-2/3*(mean.by.stage-LCL)), size=0.25, linetype = "dashed", alpha = 0.1)
+        I <- I + scale_x_continuous(breaks=dane$Probka, labels=dane$Probka) + scale_y_continuous(expand = c(0.2, 0))
         I <- I + theme_tufte(ticks=FALSE, base_size = TUFTE.base.size)  
         I <- I + theme(axis.title=element_blank())
         return(I)
@@ -311,6 +380,8 @@ server <- function(input, output, session) {
   
   #### PLOT RESET - reset tabeli oraz wykresu do stanu po wgraniu pliku ########
   observeEvent(input$resetButton,{
+    
+    
     output$kartaI <- renderPlot({
       dane <- tabela.ImR()
       
@@ -378,6 +449,7 @@ server <- function(input, output, session) {
   
   #### RYSOWANIE TABEL #####################################################
   output$plot.tabela.ImR <- DT::renderDataTable(
+    #tabela.ImR(),
     dat$dat,
     style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
   
