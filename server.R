@@ -9,22 +9,26 @@ library(DT)
 ###--------------------- ZBIÓR FUNKCJI PLOT --------------------------###
 
 ## RYSUJ KARTĘ WARTOŚCI INDYWIDUALNYCH ##################################
-rysuj.I <- function(dane, estetyka, LCL, UCL){
-  if(LCL==TRUE){
-    estetyka$LCL <- LCL}
-  if(UCL==TRUE){
-    estetykaUCL <- UCL}
+rysuj.I <- function(dane, estetyka, LCL.checkbox, UCL.checkbox, LCL.value, UCL.value){
+  if(LCL.checkbox==TRUE){
+    estetyka$LCL <- LCL.value}
+  if(UCL.checkbox==TRUE){
+    estetyka$UCL <- UCL.value}
   I <- ggplot(data=dane)
   I <- I + geom_line(aes(x=as.numeric(Probka), y=Pomiar, group=Grupa), linetype = "solid", colour = "black", size=0.25)
   I <- I + geom_point(aes(x=as.numeric(Probka), y=Pomiar),size = 2.5, shape = 16, colour = "black")
   ### Zasada.1 ####
   I <- I + geom_point(aes(x=as.numeric(Zasada.1), y=Pomiar), size = 3.5, shape = 16, colour = "red", na.rm = TRUE)
+  I <- I + geom_text(data=dane, aes(x=as.numeric(Zasada.1), y=Pomiar, label = "I"), size = TUFTE.label.size, color = "black", vjust= -1.0, hjust = -1.0, na.rm=TRUE)
   ### Zasada.2 ####
   I <- I + geom_point(aes(x=as.numeric(Zasada.2), y=Pomiar), size = 3.5, shape = 16, colour = "green", na.rm = TRUE)
-  ### Zasada.3 ####
+  I <- I + geom_text(data=dane, aes(x=as.numeric(Zasada.2), y=Pomiar, label = "II"), size = TUFTE.label.size, color = "black", vjust= -1.0, hjust = -1.0, na.rm=TRUE)
+    ### Zasada.3 ####
   I <- I + geom_point(aes(x=as.numeric(Zasada.3), y=Pomiar), size = 3.5, shape = 16, colour = "blue", na.rm = TRUE)
-  ### Zasada.4 ####
+  I <- I + geom_text(data=dane, aes(x=as.numeric(Zasada.3), y=Pomiar, label = "III"), size = TUFTE.label.size, color = "black", vjust= -1.0, hjust = -1.0, na.rm=TRUE)
+    ### Zasada.4 ####
   I <- I + geom_point(aes(x=as.numeric(Zasada.4), y=Pomiar), size = 3.5, shape = 16, colour = "yellow", na.rm = TRUE)
+  I <- I + geom_text(data=dane, aes(x=as.numeric(Zasada.4), y=Pomiar, label = "IV"), size = TUFTE.label.size, color = "black", vjust= -1.0, hjust = -1.0, na.rm=TRUE)
   I <- I + geom_text(data=estetyka, aes(poz.label-0.5, mean.by.stage, label=round(mean.by.stage, digits=2)), size = TUFTE.label.size, color = "black", vjust=-0.5)
   I <- I + geom_text(data=estetyka, aes(poz.label-0.5, UCL, label=round(UCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= -0.5)
   I <- I + geom_text(data=estetyka, aes(poz.label-0.5, LCL, label=round(LCL, digits=2)), size = TUFTE.label.size, color = "black", vjust= 1.5)
@@ -225,7 +229,7 @@ server <- function(input, output, session) {
     
     ## rysuj kartę wartości indywidualnych
     output$kartaI <- renderPlot({
-      I <- rysuj.I(dane, avg.by.stage.I, input$checkbox.ImR.LCL, input$bound.ImR.UCL)
+      I <- rysuj.I(dane, avg.by.stage.I, input$checkbox.ImR.LCL,input$checkbox.ImR.UCL, input$bound.ImR.LCL, input$bound.ImR.UCL)
       return(I)
     })
     
@@ -315,7 +319,7 @@ server <- function(input, output, session) {
       
       ## rysuj kartę wartości idywidualnych
       output$kartaI <- renderPlot({
-        I <- rysuj.I(dane, avg.by.stage.I, input$checkbox.ImR.LCL, input$bound.ImR.UCL)
+        I <- rysuj.I(dane, avg.by.stage.I, input$checkbox.ImR.LCL,input$checkbox.ImR.UCL, input$bound.ImR.LCL, input$bound.ImR.UCL)
         return(I)
       })
       
@@ -344,7 +348,7 @@ observeEvent(input$resetButton,{
     dane <- zasada.4(dane)
 
     output$kartaI <- renderPlot({
-      I <- rysuj.I(dane, avg.by.stage.I(), input$checkbox.ImR.LCL, input$bound.ImR.UCL)
+      I <- rysuj.I(dane, avg.by.stage.I, input$checkbox.ImR.LCL,input$checkbox.ImR.UCL, input$bound.ImR.LCL, input$bound.ImR.UCL)
       return(I)
     })
     
@@ -387,7 +391,19 @@ observeEvent(input$resetButton,{
   
   output$plot.tabela.XbarR <- DT::renderDataTable(
     tabela.XbarR(), style = 'default', filter = 'none', options = list(pageLength = 13), extensions = 'Responsive', rownames = FALSE)
-
+##########################################################################
+  
+## RYSOWANIE HOOVER ######################################################
+output$hover_info = renderPrint({
+  if(!is.null(input$plot_hover)){
+    xy_str <- function(e) {
+      if(is.null(input$plot_hover)) return("NULL\n")
+      paste(dat$dat$Czas[input$plot_hover$x])
+    }
+    
+    xy_str(input$plot_hover$x)
+  }
+})  
   tabela.XbarR <- reactive({
     inFile <- input$file2
     if (is.null(inFile))
