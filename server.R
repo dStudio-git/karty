@@ -43,7 +43,13 @@ zasada.1  <- function(tabela) {
 #######################################################################
 ### zasada 2 : dwa z trzech punktów leżą obszarze między 2 a 3 sigma
 ### po tej samej stronie wzlędem średniej##############################
-
+zasada.2  <- function(tabela) {
+  tabela <- as.data.frame(tabela)
+  test <- tabela %>%
+    group_by(Grupa) %>%
+    mutate(Zasada.2 = ifelse(Pomiar > three.S | Pomiar < m.three.S, Probka, "") )
+  return(as.data.frame(test))
+}
 #### STAŁE GLOBALNE ###################################################
 TUFTE.base.size = 12
 TUFTE.label.size = 3.75
